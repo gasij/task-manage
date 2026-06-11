@@ -9,7 +9,7 @@ cd /Users/soprano/codework/irina
 npm install
 npm run dev
 ```
-
+f
 Откройте **только** [http://localhost:3000](http://localhost:3000) — не открывайте HTML-файлы напрямую.
 
 Если видите 404 на `layout.css` / `main-app.js`:
