@@ -377,50 +377,6 @@ export default function NexusApp() {
     });
   };
 
-  // Custom cursor
-  useEffect(() => {
-    const cursor = document.getElementById("cursor");
-    const cursorRing = document.getElementById("cursor-ring");
-    if (!cursor || !cursorRing) return;
-
-    let cursorX = 0;
-    let cursorY = 0;
-    let ringX = 0;
-    let ringY = 0;
-
-    const onMove = (e: MouseEvent) => {
-      cursorX = e.clientX;
-      cursorY = e.clientY;
-      gsap.set(cursor, { x: cursorX, y: cursorY });
-    };
-
-    document.addEventListener("mousemove", onMove);
-
-    const ticker = () => {
-      ringX += (cursorX - ringX) * 0.12;
-      ringY += (cursorY - ringY) * 0.12;
-      gsap.set(cursorRing, { x: ringX, y: ringY });
-    };
-    gsap.ticker.add(ticker);
-
-    const interactives = document.querySelectorAll("button, input");
-    const onEnter = () => gsap.to(cursor, { width: 24, height: 24, duration: 0.2 });
-    const onLeave = () => gsap.to(cursor, { width: 14, height: 14, duration: 0.2 });
-    interactives.forEach((el) => {
-      el.addEventListener("mouseenter", onEnter);
-      el.addEventListener("mouseleave", onLeave);
-    });
-
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      gsap.ticker.remove(ticker);
-      interactives.forEach((el) => {
-        el.removeEventListener("mouseenter", onEnter);
-        el.removeEventListener("mouseleave", onLeave);
-      });
-    };
-  }, [mounted]);
-
   // Entrance animation
   useEffect(() => {
     if (!mounted || entranceDoneRef.current) return;
@@ -460,29 +416,10 @@ export default function NexusApp() {
     return () => clearTimeout(timer);
   }, [mounted]);
 
-  // Add button pulse
-  useEffect(() => {
-    if (!btnAddRef.current) return;
-    const tween = gsap.to(btnAddRef.current, {
-      scale: 1.08,
-      boxShadow: "0 0 30px rgba(0,245,255,.5)",
-      duration: 1.2,
-      repeat: -1,
-      yoyo: true,
-      ease: "power1.inOut",
-    });
-    return () => {
-      tween.kill();
-    };
-  }, [mounted, selectedDay]);
-
   if (!mounted) return null;
 
   return (
     <>
-      <div id="cursor" />
-      <div id="cursor-ring" />
-
       <div className="strands-bg">
         <Strands
           colors={["#F97316", "#7C3AED", "#06B6D4"]}

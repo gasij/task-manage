@@ -31,6 +31,7 @@ export default function TaskCard({
   const tag = TAGS[index % TAGS.length];
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (window.matchMedia("(pointer: coarse)").matches) return;
     const card = cardRef.current;
     if (!card) return;
     const r = card.getBoundingClientRect();
