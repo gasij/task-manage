@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NEXUS — Хрустальный Task Manager</title>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+<!-- GSAP CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+<style>
+/* ==============================
+   CSS ПЕРЕМЕННЫЕ — ЦВЕТОВАЯ СХЕМА
+   ============================== */
+:root {
+  --clr-void:       #020409;
+  --clr-deep:       #060c1a;
+  --clr-panel:      rgba(8, 18, 45, 0.55);
+  --clr-glass:      rgba(140, 200, 255, 0.06);
+  --clr-border:     rgba(120, 180, 255, 0.18);
+
+  --clr-cyan:       #00f5ff;
+  --clr-violet:     #a855f7;
+  --clr-pink:       #f43f8e;
+  --clr-gold:       #ffd700;
+  --clr-green:      #00ff88;
+  --clr-blue:       #3b82f6;
+
+  --clr-text:       #cde4ff;
+  --clr-muted:      rgba(180, 210, 255, 0.45);
+
+  --blur-panel:     blur(32px);
+  --blur-card:      blur(18px);
+
+  --border-radius-panel: 28px;
+  --border-radius-card:  16px;
+
+  --ring-size: 160px;
+}
+
+/* ==============================
+   RESET & BASE
+   ============================== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; min-height: 100vh;
+  overflow-x: hidden;
+  background: var(--clr-void);
+  color: var(--clr-text);
+  font-family: 'Space Grotesk', sans-serif;
+  cursor: none;
+}
+
+/* ==============================
+   CUSTOM CURSOR
+   ============================== */
+#cursor {
+  position: fixed; top: 0; left: 0;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--clr-cyan);
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: screen;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 20px var(--clr-cyan), 0 0 40px var(--clr-cyan);
+  transition: width .15s, height .15s;
+}
+#cursor-ring {
+  position: fixed; top: 0; left: 0;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 245, 255, 0.45);
+  pointer-events: none;
+  z-index: 9998;
+  transform: translate(-50%, -50%);
+}
+
+/* ==============================
+   STRANDS BACKGROUND
+   ============================== */
+#strands-bg {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: var(--clr-void);
+}
+
+#strands-bg canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ==============================
+   OVERLAY LOADER
+   ============================== */
+#loader {
+  position: fixed; inset: 0;
+  z-index: 500;
+  background: var(--clr-void);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+}
+#loader-text {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  letter-spacing: 4px;
+  color: var(--clr-cyan);
+  opacity: 0;
+}
+#loader-bar-wrap {
+  width: 180px; height: 2px;
+  background: rgba(0,245,255,.12);
+  border-radius: 2px;
+  overflow: hidden;
+}
+#loader-bar {
+  width: 0%; height: 100%;
+  background: linear-gradient(90deg, var(--clr-cyan), var(--clr-violet));
+  border-radius: 2px;
+}
+
+/* ==============================
+   MAIN APP LAYOUT
+   ============================== */
+#app {
+  position: relative;
+  z-index: 10;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px 80px;
+  opacity: 0;
+}
+
+/* ==============================
+   HEADER
+   ============================== */
+#header {
+  width: 100%;
+  max-width: 960px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 44px;
+}
+.logo {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  background: linear-gradient(90deg, var(--clr-cyan), var(--clr-violet), var(--clr-pink));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+}
+.logo span {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 3px;
+  display: block;
+  -webkit-text-fill-color: var(--clr-muted);
+  margin-top: 2px;
+}
+
+/* Warp mode button */
+#btn-warp {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--clr-cyan);
+  background: transparent;
+  border: 1px solid rgba(0,245,255,.3);
+  padding: 10px 20px;
+  border-radius: 40px;
+  cursor: none;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .3s;
+}
+#btn-warp::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(0,245,255,.1), rgba(168,85,247,.1));
+  opacity: 0;
+  transition: opacity .3s;
+}
+#btn-warp:hover::before { opacity: 1; }
+#btn-warp:hover { border-color: var(--clr-cyan); }
+
+/* ==============================
+   PROGRESS RING (NEBULA)
+   ============================== */
+#nebula-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 44px;
+}
+.nebula-ring-container {
+  position: relative;
+  width: var(--ring-size);
+  height: var(--ring-size);
+}
+#nebula-svg {
+  width: 100%; height: 100%;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 0 12px var(--clr-violet)) drop-shadow(0 0 24px var(--clr-cyan));
+}
+.ring-bg {
+  fill: none;
+  stroke: rgba(168,85,247,.12);
+  stroke-width: 6;
+}
+#ring-progress {
+  fill: none;
+  stroke: url(#ringGradient);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 440;
+  stroke-dashoffset: 440;
+  transition: none;
+}
+.nebula-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+#ring-percent {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--clr-cyan);
+  line-height: 1;
+}
+#ring-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--clr-muted);
+  font-family: 'Orbitron', sans-serif;
+}
+#ring-count {
+  font-size: 11px;
+  color: var(--clr-violet);
+  margin-top: 8px;
+  letter-spacing: 1px;
+}
+
+/* ==============================
+   CRYSTAL PANEL (Main container)
+   ============================== */
+#crystal-panel {
+  width: 100%;
+  max-width: 960px;
+  background: var(--clr-panel);
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+  border-radius: var(--border-radius-panel);
+  border: 1px solid var(--clr-border);
+  padding: 36px;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(0,245,255,.07),
+    0 8px 80px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* Rotating rainbow border */
+#crystal-panel::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(var(--border-radius-panel) + 2px);
+  background: conic-gradient(
+    from 0deg,
+    var(--clr-cyan),
+    var(--clr-violet),
+    var(--clr-pink),
+    var(--clr-gold),
+    var(--clr-green),
+    var(--clr-blue),
+    var(--clr-cyan)
+  );
+  z-index: -1;
+  opacity: 0.45;
+}
+#crystal-panel::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: calc(var(--border-radius-panel) - 1px);
+  background: var(--clr-panel);
+  backdrop-filter: var(--blur-panel);
+  z-index: -1;
+}
+
+/* Inner glow effect */
+.panel-glow {
+  position: absolute;
+  width: 600px; height: 300px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(80px);
+  opacity: 0.06;
+}
+.panel-glow-1 {
+  background: var(--clr-cyan);
+  top: -80px; left: -100px;
+}
+.panel-glow-2 {
+  background: var(--clr-violet);
+  bottom: -80px; right: -100px;
+}
+
+/* ==============================
+   INPUT AREA
+   ============================== */
+.input-section {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+  align-items: stretch;
+}
+
+#task-input {
+  flex: 1;
+  background: rgba(0,0,0,.4);
+  border: 1px solid rgba(120,180,255,.2);
+  border-radius: 12px;
+  padding: 14px 20px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+  color: var(--clr-text);
+  outline: none;
+  transition: border-color .3s, box-shadow .3s;
+  cursor: none;
+}
+#task-input::placeholder { color: var(--clr-muted); }
+#task-input:focus {
+  border-color: var(--clr-cyan);
+  box-shadow:
+    0 0 0 1px rgba(0,245,255,.25),
+    0 0 30px rgba(0,245,255,.12),
+    inset 0 0 20px rgba(0,245,255,.03);
+}
+
+#btn-add {
+  position: relative;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--clr-void);
+  background: linear-gradient(135deg, var(--clr-cyan), var(--clr-violet));
+  border: none;
+  border-radius: 12px;
+  padding: 0 28px;
+  cursor: none;
+  overflow: hidden;
+  white-space: nowrap;
+  box-shadow: 0 0 30px rgba(0,245,255,.3);
+}
+#btn-add::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.2), transparent);
+  opacity: 0;
+  transition: opacity .3s;
+}
+#btn-add:hover::after { opacity: 1; }
+
+/* ==============================
+   TASK GRID
+   ============================== */
+#task-grid {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  min-height: 60px;
+}
+
+/* ==============================
+   TASK CARD — Crystal
+   ============================== */
+.task-card {
+  position: relative;
+  background: var(--clr-glass);
+  backdrop-filter: var(--blur-card);
+  -webkit-backdrop-filter: var(--blur-card);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--border-radius-card);
+  padding: 20px 20px 16px;
+  transform-style: preserve-3d;
+  perspective: 800px;
+  transition: border-color .3s;
+  will-change: transform;
+  cursor: none;
+  overflow: visible;
+}
+.task-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--border-radius-card);
+  background: linear-gradient(135deg, rgba(255,255,255,.05) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* Card top row */
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Custom checkbox */
+.card-check {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(0,245,255,.4);
+  background: transparent;
+  cursor: none;
+  position: relative;
+  transition: border-color .3s;
+  overflow: hidden;
+}
+.card-check.checked {
+  border-color: var(--clr-green);
+  background: rgba(0,255,136,.1);
+}
+.card-check svg {
+  position: absolute; inset: 2px;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.card-check.checked svg { opacity: 1; }
+
+/* Card text */
+.card-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--clr-text);
+  word-break: break-word;
+  transition: color .4s;
+}
+.task-card.done .card-text {
+  color: var(--clr-muted);
+  text-decoration: line-through;
+  text-decoration-color: rgba(0,255,136,.4);
+}
+
+/* Delete button */
+.card-delete {
+  flex-shrink: 0;
+  width: 24px; height: 24px;
+  background: transparent;
+  border: none;
+  color: rgba(244,63,142,.0);
+  cursor: none;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  transition: color .3s, background .3s;
+}
+.task-card:hover .card-delete {
+  color: rgba(244,63,142,.5);
+}
+.card-delete:hover {
+  color: var(--clr-pink) !important;
+  background: rgba(244,63,142,.1);
+}
+
+/* Card footer */
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+.card-tag {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--clr-violet);
+  opacity: .7;
+}
+.card-time {
+  font-size: 10px;
+  color: var(--clr-muted);
+  letter-spacing: .5px;
+}
+
+/* Done glow */
+.task-card.done {
+  border-color: rgba(0,255,136,.2);
+  box-shadow:
+    0 0 20px rgba(0,255,136,.07),
+    inset 0 0 30px rgba(0,255,136,.02);
+}
+
+/* ==============================
+   EMPTY STATE
+   ============================== */
+#empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 12px;
+  opacity: 0;
+}
+.empty-icon {
+  font-size: 48px;
+  filter: drop-shadow(0 0 20px var(--clr-cyan));
+}
+.empty-text {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: var(--clr-muted);
+  text-align: center;
+}
+
+/* ==============================
+   WARP MODE OVERLAY
+   ============================== */
+#warp-overlay {
+  position: fixed; inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(0,245,255,.03) 0%, transparent 70%);
+}
+
+/* ==============================
+   SAVE TOAST
+   ============================== */
+#save-toast {
+  position: fixed;
+  bottom: 32px; right: 32px;
+  z-index: 300;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--clr-green);
+  background: rgba(0,255,136,.08);
+  border: 1px solid rgba(0,255,136,.25);
+  padding: 10px 20px;
+  border-radius: 40px;
+  opacity: 0;
+  transform: translateY(20px);
+  pointer-events: none;
+  box-shadow: 0 0 30px rgba(0,255,136,.2);
+}
+
+/* ==============================
+   PARTICLE
+   ============================== */
+.particle {
+  position: fixed;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--clr-cyan);
+  pointer-events: none;
+  z-index: 9997;
+  mix-blend-mode: screen;
+}
+
+/* ==============================
+   SHATTER PIECE
+   ============================== */
+.shatter-piece {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9996;
+  backdrop-filter: blur(4px);
+  background: linear-gradient(135deg, rgba(168,85,247,.4), rgba(0,245,255,.2));
+  border: 1px solid rgba(0,245,255,.3);
+}
+
+/* ==============================
+   FIREWORKS PARTICLE
+   ============================== */
+.firework {
+  position: fixed;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9997;
+  mix-blend-mode: screen;
+}
+
+/* ==============================
+   RESPONSIVE
+   ============================== */
+@media (max-width: 640px) {
+  #crystal-panel { padding: 20px 16px; }
+  :root { --ring-size: 120px; }
+  .logo { font-size: 16px; }
+  #task-grid { grid-template-columns: 1fr; }
+  #btn-add { padding: 0 16px; font-size: 9px; }
+}
+
+/* ==============================
+   MISC
+   ============================== */
+button, input { -webkit-appearance: none; appearance: none; }
+
+/* Animated gradient on border via GSAP (JS animates --angle) */
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+</style>
+</head>
+<body>
+
+<!-- Custom Cursor -->
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<!-- Strands Background -->
+<div id="strands-bg"></div>
+
+<!-- Loader -->
+<div id="loader">
+  <div id="loader-text">NEXUS INITIALIZING</div>
+  <div id="loader-bar-wrap"><div id="loader-bar"></div></div>
+</div>
+
+<!-- Warp Overlay -->
+<div id="warp-overlay"></div>
+
+<!-- Save Toast -->
+<div id="save-toast">✦ СОХРАНЕНО</div>
+
+<!-- Main App -->
+<div id="app">
+  <header id="header">
+    <div class="logo">
+      NEXUS
+      <span>QUANTUM TASK MATRIX</span>
+    </div>
+    <button id="btn-warp">⚡ WARP MODE</button>
+  </header>
+
+  <!-- Nebula Ring -->
+  <div id="nebula-wrap">
+    <div class="nebula-ring-container">
+      <svg id="nebula-svg" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#00f5ff"/>
+            <stop offset="50%" stop-color="#a855f7"/>
+            <stop offset="100%" stop-color="#f43f8e"/>
+          </linearGradient>
+        </defs>
+        <circle class="ring-bg" cx="80" cy="80" r="70"/>
+        <circle id="ring-progress" cx="80" cy="80" r="70"/>
+      </svg>
+      <div class="nebula-center">
+        <div id="ring-percent">0%</div>
+        <div id="ring-label">ПРОГРЕСС</div>
+      </div>
+    </div>
+    <div id="ring-count">0 / 0 задач</div>
+  </div>
+
+  <!-- Crystal Panel -->
+  <section id="crystal-panel">
+    <div class="panel-glow panel-glow-1"></div>
+    <div class="panel-glow panel-glow-2"></div>
+
+    <!-- Input -->
+    <div class="input-section">
+      <input type="text" id="task-input" placeholder="Введите задачу и нажмите Enter..." maxlength="200" autocomplete="off" spellcheck="false" />
+      <button id="btn-add">＋ ДОБАВИТЬ</button>
+    </div>
+
+    <!-- Task Grid -->
+    <div id="task-grid">
+      <div id="empty-state">
+        <div class="empty-icon">✦</div>
+        <div class="empty-text">ЗАДАЧИ ОТСУТСТВУЮТ<br/>ВВЕДИТЕ ПЕРВУЮ ЦЕЛЬ</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+// =========================================================
+// 0. GSAP PLUGIN REGISTRATION
+// =========================================================
+gsap.registerPlugin(Flip, ScrollTrigger);
+
+// =========================================================
+// 1. STATE
+// =========================================================
+let tasks = JSON.parse(localStorage.getItem('nexus-tasks') || '[]');
+let warpMode = false;
+let warpActive = false;
+window.nexusWarpSpeed = 0; // 0 = normal, 1 = warp (used by Strands bg)
+const CIRCUMFERENCE = 2 * Math.PI * 70; // ~440
+
+// =========================================================
+// 3. CUSTOM CURSOR
+// =========================================================
+const cursor = document.getElementById('cursor');
+const cursorRing = document.getElementById('cursor-ring');
+let cursorX = 0, cursorY = 0;
+let ringX = 0, ringY = 0;
+
+document.addEventListener('mousemove', e => {
+  cursorX = e.clientX;
+  cursorY = e.clientY;
+  gsap.set(cursor, { x: cursorX, y: cursorY });
+});
+
+gsap.ticker.add(() => {
+  ringX += (cursorX - ringX) * 0.12;
+  ringY += (cursorY - ringY) * 0.12;
+  gsap.set(cursorRing, { x: ringX, y: ringY });
+});
+
+document.querySelectorAll('button, input').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    gsap.to(cursor, { width: 24, height: 24, duration: .2 });
+  });
+  el.addEventListener('mouseleave', () => {
+    gsap.to(cursor, { width: 14, height: 14, duration: .2 });
+  });
+});
+
+// =========================================================
+// 4. ENTRANCE ANIMATION (Loader → App)
+// =========================================================
+function runEntrance() {
+  const tl = gsap.timeline();
+
+  // Loader text fade in
+  tl.to('#loader-text', { opacity: 1, duration: .5 })
+    .to('#loader-bar', { width: '100%', duration: 1.2, ease: 'power2.inOut' }, '<')
+    .to('#strands-bg', { opacity: 1, duration: .8 }, '-=0.4')
+    .to('#loader', { opacity: 0, duration: .6, ease: 'power2.in' }, '+=0.2')
+    .set('#loader', { display: 'none' })
+    .to('#app', { opacity: 1, duration: .1 })
+    // Crystal panel: singularity entrance
+    .from('#crystal-panel', {
+      scale: 0.05,
+      rotationY: 180,
+      opacity: 0,
+      duration: 1.5,
+      ease: 'elastic.out(1, 0.5)'
+    }, '<')
+    // Header slides down
+    .from('#header', {
+      y: -40, opacity: 0, duration: .7, ease: 'power3.out'
+    }, '-=1.0')
+    // Ring scales in
+    .from('#nebula-wrap', {
+      scale: 0, opacity: 0, duration: .8, ease: 'back.out(2)'
+    }, '-=0.7');
+
+  // After panel appears — border rotation (infinite)
+  tl.add(() => {
+    gsap.to('#crystal-panel', {
+      '--angle': '360deg',
+      duration: 8,
+      ease: 'none',
+      repeat: -1,
+      modifiers: {
+        '--angle': v => v
+      }
+    });
+    // Actually animate the ::before via JS rotation on a wrapper
+    startBorderRotation();
+  }, '-=0.5');
+
+  tl.add(() => {
+    renderTasks(true);
+  }, '-=0.3');
+}
+
+// Border rainbow rotation via JS (since ::before can't be easily targeted)
+function startBorderRotation() {
+  let angle = 0;
+  const panel = document.getElementById('crystal-panel');
+
+  gsap.to({ v: 0 }, {
+    v: 360,
+    duration: 8,
+    ease: 'none',
+    repeat: -1,
+    onUpdate: function() {
+      const v = this.targets()[0].v;
+      panel.style.setProperty('--border-angle', v + 'deg');
+    }
+  });
+
+  // Actually use a filter hue-rotate on ::before via a dummy element
+  // Simpler: just animate background of the outer ::before
+  // We'll create a real rotating gradient overlay div
+  const borderEl = document.createElement('div');
+  borderEl.id = 'panel-border-rotate';
+  borderEl.style.cssText = `
+    position:absolute; inset:-2px; border-radius:30px;
+    background: conic-gradient(from 0deg, #00f5ff, #a855f7, #f43f8e, #ffd700, #00ff88, #3b82f6, #00f5ff);
+    z-index:-1; opacity:0.4; pointer-events:none;
+  `;
+  document.getElementById('crystal-panel').appendChild(borderEl);
+  gsap.to(borderEl, { rotation: 360, duration: 8, ease: 'none', repeat: -1 });
+}
+
+// =========================================================
+// 5. TASK HELPERS
+// =========================================================
+function saveToLocalStorage() {
+  localStorage.setItem('nexus-tasks', JSON.stringify(tasks));
+  showSaveToast();
+}
+
+function showSaveToast() {
+  gsap.killTweensOf('#save-toast');
+  gsap.fromTo('#save-toast',
+    { opacity: 0, y: 20 },
+    { opacity: 1, y: 0, duration: .3, ease: 'back.out(2)', yoyo: true, hold: 1.5,
+      onComplete: () => gsap.to('#save-toast', { opacity: 0, y: 10, duration: .3 })
+    }
+  );
+}
+
+function formatTime() {
+  const now = new Date();
+  return now.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+}
+
+function getTagColor(i) {
+  const colors = [
+    { label: 'PRIORITY', color: '#f43f8e' },
+    { label: 'TASK', color: '#a855f7' },
+    { label: 'GOAL', color: '#00f5ff' },
+    { label: 'FOCUS', color: '#ffd700' },
+    { label: 'ACTION', color: '#00ff88' },
+  ];
+  return colors[i % colors.length];
+}
+
+// =========================================================
+// 6. CREATE CARD DOM
+// =========================================================
+function createCardDOM(task, index) {
+  const card = document.createElement('div');
+  card.className = 'task-card' + (task.done ? ' done' : '');
+  card.dataset.id = task.id;
+  card.style.cssText = 'transform-style: preserve-3d; perspective: 800px;';
+
+  const tagInfo = getTagColor(index);
+
+  card.innerHTML = `
+    <div class="card-top">
+      <div class="card-check ${task.done ? 'checked' : ''}" data-id="${task.id}">
+        <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="2,7 6,11 12,3" stroke="#00ff88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="card-text">${escapeHTML(task.text)}</div>
+      <button class="card-delete" data-id="${task.id}" title="Удалить">✕</button>
+    </div>
+    <div class="card-footer">
+      <span class="card-tag" style="color:${tagInfo.color}">${tagInfo.label}</span>
+      <span class="card-time">${task.time || ''}</span>
+    </div>
+  `;
+
+  // Hover 3D tilt
+  attachHoverTilt(card);
+
+  // Checkbox click
+  card.querySelector('.card-check').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleTask(task.id, card);
+  });
+
+  // Delete click
+  card.querySelector('.card-delete').addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteTask(task.id, card);
+  });
+
+  return card;
+}
+
+function escapeHTML(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// =========================================================
+// 7. RENDER TASKS
+// =========================================================
+function renderTasks(animate = false) {
+  const grid = document.getElementById('task-grid');
+
+  // Clear existing cards (keep empty state)
+  grid.querySelectorAll('.task-card').forEach(c => c.remove());
+
+  if (tasks.length === 0) {
+    gsap.to('#empty-state', { opacity: 1, duration: .5, delay: .2 });
+    updateProgress();
+    return;
+  }
+
+  gsap.set('#empty-state', { opacity: 0 });
+
+  tasks.forEach((task, i) => {
+    const card = createCardDOM(task, i);
+    grid.appendChild(card);
+
+    if (animate) {
+      gsap.from(card, {
+        y: -60,
+        opacity: 0,
+        scale: 0.85,
+        rotation: gsap.utils.random(-5, 5),
+        duration: .7,
+        delay: 0.1 * i,
+        ease: 'back.out(2)'
+      });
+    }
+  });
+
+  updateProgress();
+}
+
+// =========================================================
+// 8. PROGRESS RING
+// =========================================================
+function updateProgress() {
+  const total = tasks.length;
+  const done = tasks.filter(t => t.done).length;
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+  const offset = CIRCUMFERENCE - (pct / 100) * CIRCUMFERENCE;
+
+  // Ring stroke
+  gsap.to('#ring-progress', {
+    strokeDashoffset: offset,
+    duration: 0.8,
+    ease: 'power2.out'
+  });
+
+  // Percent counter
+  const counterEl = document.getElementById('ring-percent');
+  const currentVal = parseInt(counterEl.textContent) || 0;
+  gsap.to({ val: currentVal }, {
+    val: pct,
+    duration: .8,
+    ease: 'power2.out',
+    onUpdate: function() {
+      counterEl.textContent = Math.round(this.targets()[0].val) + '%';
+    }
+  });
+
+  document.getElementById('ring-count').textContent = `${done} / ${total} задач`;
+
+  // 100% fireworks!
+  if (pct === 100 && total > 0) {
+    setTimeout(launchFireworks, 400);
+  }
+}
+
+// =========================================================
+// 9. ADD TASK
+// =========================================================
+function addTask() {
+  const input = document.getElementById('task-input');
+  const text = input.value.trim();
+  if (!text) {
+    // Shake input
+    gsap.to(input, { x: -8, duration: .05, yoyo: true, repeat: 5, ease: 'none', clearProps: 'x' });
+    return;
+  }
+
+  const task = {
+    id: Date.now().toString(),
+    text,
+    done: false,
+    time: formatTime()
+  };
+
+  tasks.unshift(task);
+  saveToLocalStorage();
+
+  // Clear input
+  gsap.to(input, { opacity: .5, duration: .1, yoyo: true, repeat: 1, onComplete: () => { input.value = ''; } });
+
+  // Spawn particles from button
+  const btn = document.getElementById('btn-add');
+  spawnParticles(btn, 30);
+
+  // Render with Flip
+  const grid = document.getElementById('task-grid');
+  gsap.set('#empty-state', { opacity: 0 });
+
+  const state = Flip.getState('.task-card');
+
+  const card = createCardDOM(task, 0);
+  grid.insertBefore(card, grid.firstChild);
+
+  Flip.from(state, {
+    duration: .6,
+    ease: 'power2.inOut',
+    stagger: .05,
+    absolute: true
+  });
+
+  // New card entrance
+  gsap.from(card, {
+    scale: 0,
+    rotationX: 90,
+    opacity: 0,
+    duration: .8,
+    ease: 'back.out(3)'
+  });
+
+  updateProgress();
+}
+
+// =========================================================
+// 10. TOGGLE TASK (DONE / UNDONE)
+// =========================================================
+function toggleTask(id, card) {
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+
+  task.done = !task.done;
+  saveToLocalStorage();
+
+  const checkEl = card.querySelector('.card-check');
+  const textEl = card.querySelector('.card-text');
+
+  if (task.done) {
+    // Holy Glow sequence
+    const tl = gsap.timeline();
+
+    // 1. Ripple wave
+    const ripple = document.createElement('div');
+    ripple.style.cssText = `
+      position:absolute; top:50%; left:50%; width:20px; height:20px;
+      border-radius:50%; border:2px solid rgba(0,255,136,.6);
+      transform:translate(-50%,-50%); pointer-events:none; z-index:10;
+    `;
+    card.appendChild(ripple);
+
+    tl.to(ripple, {
+      scale: 8, opacity: 0, duration: .6, ease: 'power2.out',
+      onComplete: () => ripple.remove()
+    });
+
+    // 2. Gold glow
+    tl.to(card, {
+      boxShadow: '0 0 40px rgba(255,215,0,.4), 0 0 80px rgba(0,255,136,.2), inset 0 0 40px rgba(255,215,0,.05)',
+      duration: .4
+    }, '<');
+
+    // 3. Check + class
+    tl.add(() => {
+      checkEl.classList.add('checked');
+      card.classList.add('done');
+      gsap.from(checkEl.querySelector('svg'), { opacity: 0, scale: 0, duration: .3, ease: 'back.out(3)' });
+    }, '-=0.2');
+
+    // 4. Card breath
+    tl.to(card, { scale: 1.02, duration: .15, yoyo: true, repeat: 1, ease: 'power1.inOut' });
+
+    // 5. Settle glow
+    tl.to(card, {
+      boxShadow: '0 0 20px rgba(0,255,136,.07), inset 0 0 30px rgba(0,255,136,.02)',
+      duration: .6
+    });
+
+  } else {
+    checkEl.classList.remove('checked');
+    card.classList.remove('done');
+    gsap.to(card, {
+      boxShadow: 'none', duration: .4
+    });
+    gsap.from(card, { scale: .98, duration: .2, ease: 'power2.out' });
+  }
+
+  updateProgress();
+}
+
+// =========================================================
+// 11. DELETE TASK (SHATTER)
+// =========================================================
+function deleteTask(id, card) {
+  tasks = tasks.filter(t => t.id !== id);
+  saveToLocalStorage();
+
+  // Get card rect for shards
+  const rect = card.getBoundingClientRect();
+  shatterCard(rect, card);
+}
+
+function shatterCard(rect, card) {
+  // Create 12 polygon shards
+  const count = 12;
+  const shards = [];
+
+  // Simple pseudo-Voronoi: grid subdivisions with offsets
+  const cols = 4, rows = 3;
+  const cw = rect.width / cols, ch = rect.height / rows;
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const shard = document.createElement('div');
+      const ox = rect.left + c * cw + gsap.utils.random(-cw * .2, cw * .2);
+      const oy = rect.top + r * ch + gsap.utils.random(-ch * .2, ch * .2);
+      const sw = cw + gsap.utils.random(-cw * .1, cw * .1);
+      const sh = ch + gsap.utils.random(-ch * .1, ch * .1);
+
+      shard.className = 'shatter-piece';
+      shard.style.cssText = `
+        position:fixed; left:${ox}px; top:${oy}px;
+        width:${sw}px; height:${sh}px;
+        border-radius:${gsap.utils.random(2,6)}px;
+        clip-path: polygon(${gsap.utils.random(0,20)}% ${gsap.utils.random(0,20)}%, ${gsap.utils.random(80,100)}% ${gsap.utils.random(0,20)}%, ${gsap.utils.random(80,100)}% ${gsap.utils.random(80,100)}%, ${gsap.utils.random(0,20)}% ${gsap.utils.random(80,100)}%);
+      `;
+      document.body.appendChild(shard);
+      shards.push(shard);
+
+      gsap.to(shard, {
+        x: gsap.utils.random(-250, 250),
+        y: gsap.utils.random(-200, 200),
+        rotation: gsap.utils.random(-360, 360),
+        scale: gsap.utils.random(0.2, 0.8),
+        opacity: 0,
+        duration: gsap.utils.random(0.6, 1.0),
+        ease: 'power4.out',
+        onComplete: () => shard.remove()
+      });
+    }
+  }
+
+  // Hide original card immediately
+  gsap.to(card, { opacity: 0, scale: 0.95, duration: .15, onComplete: () => {
+    // Flip rebuild
+    const grid = document.getElementById('task-grid');
+    const state = Flip.getState('.task-card');
+    card.remove();
+
+    if (tasks.length === 0) {
+      gsap.to('#empty-state', { opacity: 1, duration: .5, delay: .3 });
+    }
+
+    Flip.from(state, {
+      duration: .5,
+      ease: 'power2.inOut',
+      stagger: .04,
+      absolute: true
+    });
+
+    updateProgress();
+  }});
+}
+
+// =========================================================
+// 12. PARTICLES
+// =========================================================
+function spawnParticles(target, count = 30) {
+  const rect = target.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+
+  const colors = ['#00f5ff', '#a855f7', '#f43f8e', '#ffd700', '#00ff88', '#ffffff'];
+
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.width = gsap.utils.random(3, 7) + 'px';
+    p.style.height = p.style.width;
+    document.body.appendChild(p);
+
+    gsap.set(p, { x: cx, y: cy });
+    gsap.to(p, {
+      x: cx + gsap.utils.random(-180, 180),
+      y: cy + gsap.utils.random(-180, 180),
+      scale: gsap.utils.random(0.3, 2),
+      opacity: 0,
+      duration: gsap.utils.random(0.5, 1.1),
+      ease: 'power3.out',
+      onComplete: () => p.remove()
+    });
+  }
+}
+
+// =========================================================
+// 13. FIREWORKS (100% completion)
+// =========================================================
+function launchFireworks() {
+  const colors = ['#00f5ff', '#a855f7', '#f43f8e', '#ffd700', '#00ff88', '#ff6b6b'];
+  const cx = document.getElementById('nebula-wrap').getBoundingClientRect();
+  const originX = cx.left + cx.width / 2;
+  const originY = cx.top + cx.height / 2;
+
+  for (let b = 0; b < 5; b++) {
+    setTimeout(() => {
+      const bx = originX + gsap.utils.random(-80, 80);
+      const by = originY + gsap.utils.random(-60, 60);
+
+      for (let i = 0; i < 20; i++) {
+        const p = document.createElement('div');
+        p.className = 'firework';
+        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        p.style.boxShadow = `0 0 6px ${p.style.background}`;
+        document.body.appendChild(p);
+        gsap.set(p, { x: bx, y: by });
+        gsap.to(p, {
+          x: bx + gsap.utils.random(-120, 120),
+          y: by + gsap.utils.random(-120, 120),
+          opacity: 0,
+          scale: gsap.utils.random(0.5, 2),
+          duration: gsap.utils.random(0.7, 1.4),
+          ease: 'power2.out',
+          onComplete: () => p.remove()
+        });
+      }
+    }, b * 180);
+  }
+}
+
+// =========================================================
+// 14. HOVER TILT (3D PARALLAX)
+// =========================================================
+function attachHoverTilt(card) {
+  const setX = gsap.quickSetter(card, 'rotateY', 'deg');
+  const setY = gsap.quickSetter(card, 'rotateX', 'deg');
+
+  card.addEventListener('mousemove', e => {
+    if (warpActive) return;
+    const r = card.getBoundingClientRect();
+    const nx = (e.clientX - r.left) / r.width - 0.5;  // -0.5 to 0.5
+    const ny = (e.clientY - r.top) / r.height - 0.5;
+    setX(nx * 18);
+    setY(-ny * 12);
+
+    gsap.to(card, {
+      boxShadow: `${-nx * 20}px ${-ny * 20}px 40px rgba(0,245,255,.12)`,
+      duration: .1
+    });
+  });
+
+  card.addEventListener('mouseleave', () => {
+    gsap.to(card, {
+      rotateX: 0, rotateY: 0,
+      boxShadow: 'none',
+      duration: .8, ease: 'elastic.out(1, 0.4)'
+    });
+  });
+}
+
+// =========================================================
+// 15. INPUT FOCUS GLOW
+// =========================================================
+const taskInput = document.getElementById('task-input');
+taskInput.addEventListener('focus', () => {
+  gsap.to(taskInput, {
+    boxShadow: '0 0 0 1px rgba(0,245,255,.4), 0 0 40px rgba(0,245,255,.15)',
+    duration: .4
+  });
+});
+taskInput.addEventListener('blur', () => {
+  gsap.to(taskInput, {
+    boxShadow: 'none', duration: .4
+  });
+});
+taskInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') addTask();
+});
+
+// =========================================================
+// 16. ADD BUTTON PULSE
+// =========================================================
+const btnAdd = document.getElementById('btn-add');
+gsap.to(btnAdd, {
+  scale: 1.04,
+  boxShadow: '0 0 40px rgba(0,245,255,.5)',
+  duration: 1.2,
+  repeat: -1,
+  yoyo: true,
+  ease: 'power1.inOut'
+});
+btnAdd.addEventListener('click', addTask);
+
+// =========================================================
+// 17. WARP MODE
+// =========================================================
+const btnWarp = document.getElementById('btn-warp');
+
+btnWarp.addEventListener('click', () => {
+  if (warpActive) {
+    exitWarpMode();
+  } else {
+    enterWarpMode();
+  }
+});
+
+function enterWarpMode() {
+  if (warpActive) return;
+  warpActive = true;
+
+  const cards = document.querySelectorAll('.task-card');
+  if (cards.length === 0) return;
+
+  // Warp background speed up
+  gsap.to({ s: 0 }, {
+    s: 1,
+    duration: 1.2,
+    ease: 'power2.in',
+    onUpdate: function() { window.nexusWarpSpeed = this.targets()[0].s; }
+  });
+
+  // All cards except first fly away
+  const otherCards = Array.from(cards).slice(1);
+  if (otherCards.length > 0) {
+    gsap.to(otherCards, {
+      scale: 0.2,
+      opacity: 0,
+      z: -500,
+      stagger: .05,
+      duration: .6,
+      ease: 'power3.in'
+    });
+  }
+
+  // First card expands
+  if (cards[0]) {
+    gsap.to(cards[0], {
+      scale: 1.08,
+      boxShadow: '0 0 60px rgba(0,245,255,.3), 0 0 120px rgba(168,85,247,.2)',
+      duration: .8,
+      ease: 'power2.out'
+    });
+    gsap.to(cards[0], {
+      rotateY: 360, duration: 20, repeat: -1, ease: 'none', id: 'warp-spin'
+    });
+  }
+
+  // Overlay glow
+  gsap.to('#warp-overlay', { opacity: 1, duration: .8 });
+
+  // Button text
+  btnWarp.textContent = '✕ EXIT WARP';
+  gsap.to(btnWarp, { color: '#f43f8e', borderColor: 'rgba(244,63,142,.6)', duration: .4 });
+}
+
+function exitWarpMode() {
+  if (!warpActive) return;
+  warpActive = false;
+
+  // Warp speed down
+  gsap.to({ s: window.nexusWarpSpeed }, {
+    s: 0,
+    duration: 1.0,
+    ease: 'power2.out',
+    onUpdate: function() { window.nexusWarpSpeed = this.targets()[0].s; }
+  });
+
+  const cards = document.querySelectorAll('.task-card');
+
+  // Kill spin on first card
+  gsap.killTweensOf(cards[0], 'rotateY');
+
+  // All cards return
+  gsap.to(cards, {
+    scale: 1,
+    opacity: 1,
+    z: 0,
+    rotateY: 0,
+    boxShadow: 'none',
+    stagger: .06,
+    duration: .7,
+    ease: 'back.out(2)'
+  });
+
+  gsap.to('#warp-overlay', { opacity: 0, duration: .6 });
+
+  btnWarp.textContent = '⚡ WARP MODE';
+  gsap.to(btnWarp, { color: 'var(--clr-cyan)', borderColor: 'rgba(0,245,255,.3)', duration: .4 });
+}
+
+// =========================================================
+// 18. WINDOW RESIZE — Rerender
+// =========================================================
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    renderTasks(false);
+  }, 300);
+});
+
+// =========================================================
+// 19. RUN ENTRANCE
+// =========================================================
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(runEntrance, 200);
+});
+</script>
+</body>
+</html>
