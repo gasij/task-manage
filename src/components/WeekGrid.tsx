@@ -21,6 +21,7 @@ type WeekGridProps = {
   onAddTask: () => void;
   onToggleTask: (id: string, card: HTMLDivElement) => void;
   onDeleteTask: (id: string, card: HTMLDivElement) => void;
+  onEditTask: (id: string, text: string) => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
   btnAddRef: React.RefObject<HTMLButtonElement | null>;
   gridRef: React.RefObject<HTMLDivElement | null>;
@@ -35,6 +36,7 @@ export default function WeekGrid({
   onAddTask,
   onToggleTask,
   onDeleteTask,
+  onEditTask,
   inputRef,
   btnAddRef,
   gridRef,
@@ -62,7 +64,7 @@ export default function WeekGrid({
       {WEEK_DAYS.map((day) => {
         const expanded = day === selectedDay;
         const date = dates[day];
-        const dayTasks = tasks.filter((t) => t.day === day);
+        const dayTasks = tasks.filter((t) => t.day !== null && t.day === day);
         const done = dayTasks.filter((t) => t.done).length;
         const total = dayTasks.length;
         const isToday = day === today;
@@ -148,6 +150,7 @@ export default function WeekGrid({
                         compact
                         onToggle={onToggleTask}
                         onDelete={onDeleteTask}
+                        onEdit={onEditTask}
                       />
                     ))
                   )}

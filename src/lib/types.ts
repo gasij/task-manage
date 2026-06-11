@@ -5,5 +5,5 @@ export type Task = {
   text: string;
   done: boolean;
   time: string;
-  day: WeekDay;
+  day: WeekDay | null;
 };

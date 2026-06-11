@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import type { Task } from "@/lib/types";
 
@@ -18,6 +18,7 @@ type TaskCardProps = {
   compact?: boolean;
   onToggle: (id: string, card: HTMLDivElement) => void;
   onDelete: (id: string, card: HTMLDivElement) => void;
+  onEdit: (id: string, text: string) => void;
 };
 
 export default function TaskCard({
@@ -26,12 +27,40 @@ export default function TaskCard({
   compact = false,
   onToggle,
   onDelete,
+  onEdit,
 }: TaskCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const editRef = useRef<HTMLInputElement>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(task.text);
   const tag = TAGS[index % TAGS.length];
 
+  useEffect(() => {
+    if (!editing) setDraft(task.text);
+  }, [task.text, editing]);
+
+  useEffect(() => {
+    if (editing) editRef.current?.focus();
+  }, [editing]);
+
+  const saveEdit = () => {
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      setDraft(task.text);
+      setEditing(false);
+      return;
+    }
+    if (trimmed !== task.text) onEdit(task.id, trimmed);
+    setEditing(false);
+  };
+
+  const cancelEdit = () => {
+    setDraft(task.text);
+    setEditing(false);
+  };
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (window.matchMedia("(pointer: coarse)").matches) return;
+    if (editing || window.matchMedia("(pointer: coarse)").matches) return;
     const card = cardRef.current;
     if (!card) return;
     const r = card.getBoundingClientRect();
@@ -59,7 +88,7 @@ export default function TaskCard({
   return (
     <div
       ref={cardRef}
-      className={`task-card${task.done ? " done" : ""}${compact ? " task-card--compact" : ""}`}
+      className={`task-card${task.done ? " done" : ""}${compact ? " task-card--compact" : ""}${editing ? " editing" : ""}`}
       data-id={task.id}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
@@ -76,17 +105,62 @@ export default function TaskCard({
           <input type="checkbox" checked={task.done} readOnly tabIndex={-1} />
           <div className="checkmark" />
         </label>
-        <div className="card-text">{task.text}</div>
-        <button
-          className="card-delete"
-          title="Удалить"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (cardRef.current) onDelete(task.id, cardRef.current);
-          }}
-        >
-          ✕
-        </button>
+
+        {editing ? (
+          <input
+            ref={editRef}
+            className="card-edit-input"
+            value={draft}
+            maxLength={200}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                saveEdit();
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                cancelEdit();
+              }
+            }}
+            onBlur={saveEdit}
+          />
+        ) : (
+          <div
+            className="card-text"
+            onDoubleClick={() => !task.done && setEditing(true)}
+            title="Двойной клик для редактирования"
+          >
+            {task.text}
+          </div>
+        )}
+
+        <div className="card-actions">
+          {!editing && !task.done && (
+            <button
+              type="button"
+              className="card-edit"
+              title="Редактировать"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditing(true);
+              }}
+            >
+              ✎
+            </button>
+          )}
+          <button
+            type="button"
+            className="card-delete"
+            title="Удалить"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (cardRef.current) onDelete(task.id, cardRef.current);
+            }}
+          >
+            ✕
+          </button>
+        </div>
       </div>
       <div className="card-footer">
         <span className="card-tag" style={{ color: tag.color }}>

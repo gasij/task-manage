@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { Flip } from "gsap/Flip";
 import Strands from "@/components/Strands";
+import QuickInbox from "@/components/QuickInbox";
 import WeekGrid from "@/components/WeekGrid";
 import type { Task, WeekDay } from "@/lib/types";
 import { formatSelectedDay, getTodayWeekDay } from "@/lib/week";
@@ -17,9 +18,11 @@ function migrateTasks(raw: unknown[]): Task[] {
   return raw.map((item) => {
     const t = item as Partial<Task>;
     const day =
-      typeof t.day === "number" && t.day >= 0 && t.day <= 6
-        ? (t.day as WeekDay)
-        : today;
+      t.day === null
+        ? null
+        : typeof t.day === "number" && t.day >= 0 && t.day <= 6
+          ? (t.day as WeekDay)
+          : today;
     return {
       id: String(t.id ?? Date.now()),
       text: String(t.text ?? ""),
@@ -41,6 +44,7 @@ export default function NexusApp() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedDay, setSelectedDay] = useState<WeekDay>(0);
   const [inputValue, setInputValue] = useState("");
+  const [inboxValue, setInboxValue] = useState("");
   const [ringPercent, setRingPercent] = useState(0);
   const [ringCount, setRingCount] = useState("0 / 0 задач");
   const [mounted, setMounted] = useState(false);
@@ -132,7 +136,7 @@ export default function NexusApp() {
 
   const updateProgress = useCallback(
     (list: Task[], day: WeekDay) => {
-      const dayList = list.filter((t) => t.day === day);
+      const dayList = list.filter((t) => t.day !== null && t.day === day);
       const total = dayList.length;
       const done = dayList.filter((t) => t.done).length;
       const pct = total === 0 ? 0 : Math.round((done / total) * 100);
@@ -288,6 +292,31 @@ export default function NexusApp() {
       });
     }
     if (btnAddRef.current) spawnParticles(btnAddRef.current, 30);
+  };
+
+  const addInboxTask = () => {
+    const text = inboxValue.trim();
+    if (!text) return;
+
+    const task: Task = {
+      id: Date.now().toString(),
+      text,
+      done: false,
+      time: formatTime(),
+      day: null,
+    };
+
+    saveTasks([task, ...tasks]);
+    setInboxValue("");
+  };
+
+  const editTask = (id: string, text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const next = tasks.map((t) =>
+      t.id === id ? { ...t, text: trimmed } : t
+    );
+    saveTasks(next);
   };
 
   const toggleTask = (id: string, card: HTMLDivElement) => {
@@ -476,6 +505,16 @@ export default function NexusApp() {
           <div className="panel-glow panel-glow-2" />
 
           <div className="glass-form-content">
+            <QuickInbox
+              tasks={tasks.filter((t) => t.day === null)}
+              value={inboxValue}
+              onChange={setInboxValue}
+              onAdd={addInboxTask}
+              onToggle={toggleTask}
+              onDelete={deleteTask}
+              onEdit={editTask}
+            />
+
             <WeekGrid
               tasks={tasks}
               selectedDay={selectedDay}
@@ -485,6 +524,7 @@ export default function NexusApp() {
               onAddTask={addTask}
               onToggleTask={toggleTask}
               onDeleteTask={deleteTask}
+              onEditTask={editTask}
               inputRef={inputRef}
               btnAddRef={btnAddRef}
               gridRef={weekGridRef}
